@@ -1,11 +1,12 @@
 # Aeds-3
 
 Repositorio criado para a organização e disponibilização dos códigos desenvolvidos na disciplina de Algoritmos e Estruturas de Dados 3 na PUC Minas - 2026/2.
+Correção da atividade sempre na branch main
 
 # Membros
 
 - Mateus Henrique Duarte Silva (https://github.com/M4teushds227)
-- Mateus Coelho Pires ()
+- Mateus Coelho Pires (https://github.com/concernedjal37)
 
 # Base de Dados
 
@@ -23,3 +24,13 @@ Repositorio criado para a organização e disponibilização dos códigos desenv
 3. Compactação com Huffman e LZW (Vídeo explicativo)
 
 4. Casamento de padrões e criptografia (Relatório Final)
+
+# Como Fazer funcionar 
+
+1. javac -d bin Src/*.java 
+-d faz criar uma pasta e dentro dela vai ter todos os arquivos .class
+
+2. java -cp bin Src.Main
+-cp faz usar a pasta bin como caminho para executar os arquivos
+
+3. Carregar a base de dados
