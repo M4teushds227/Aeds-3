@@ -1,5 +1,9 @@
 package Src;
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.File;
+import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.util.Scanner;
 public class ListaInvertida {
     //private String[] termos;
@@ -21,9 +25,9 @@ public class ListaInvertida {
         return numPalavras;
     }
     //Metodo para inserir termos
-    private void inserirTermos(String[] termos, int tamanho, String linha){
+    private void inserirTermosNaString(String[] termos, int tamanho, String linha){
         Scanner scan = new Scanner(linha);
-        scan.useDelimiter(" ");
+        //scan.useDelimiter("\0");
         String termo;
         for(int i = 0; i < tamanho && scan.hasNext(); i++){
             termo = scan.next();
@@ -33,13 +37,56 @@ public class ListaInvertida {
     }
 
     //Adiciona novos termos ao arquivo atribuido a variavel arq
-    public void adicionarTermos(String linha, int id){
+    public void adicionarTermos(String linha, int id)throws IOException{
+        RandomAccessFile escrita = new RandomAccessFile(arq, "rw");
+        escrita.seek(escrita.length());
         int tam = contarTermos(linha);
         String[] termos = new String[tam];
         //metodo de inserção de termos
-        inserirTermos(termos, tam, linha);
-        //metodo de pesquisa de termos no arquivo
+        inserirTermosNaString(termos, tam, linha);
+        //System.err.println(linha);
         //Inserir termos com os seus respectivos ids
+        for(int i = 0; i < termos.length; i++){
+            //System.out.print(termos[i] + " ");
+            byte[] dado = converteTermo(termos[i]);
+            escrita.write(dado);
+        }
+        //System.out.println();
+    }
+    private byte[] converteTermo(String dado)throws IOException{
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        DataOutputStream dos = new DataOutputStream(baos);
+        //System.out.println(dado);
+        if(procuraTermo(dado)){
+            for(int i = dado.length(); i < 13; i++){
+                dado += " ";
+            }
+            dos.writeUTF(dado);
+        }
+        return baos.toByteArray();
+    }
+    //procura
+    private boolean procuraTermo(String dado)throws IOException{
+        RandomAccessFile le = new RandomAccessFile(arq, "r");
+        boolean resul = true;
+        while(le.getFilePointer() < le.length()){
+            String comparador = le.readUTF();
+            //System.out.println(dado);
+            /*if(dado == null) {
+                System.out.print(dado);
+                System.out.println(" Deu ruim");
+            }*/
+            Scanner tiraEspaco = new Scanner(comparador);
+            comparador = tiraEspaco.next();
+            tiraEspaco.close();
+            if(dado.compareTo(comparador) == 0){
+                resul = false;
+                le.close();
+                break;
+            }
+        }
+        le.close();
+        return resul;
     }
 
     //Atualiza os termos

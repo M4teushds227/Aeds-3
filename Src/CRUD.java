@@ -101,8 +101,8 @@ public class CRUD {
                 BufferedReader entArqCsv = new BufferedReader(new FileReader(csvArq))) {
             // reserva os primeiros 4 bytes pro cabecalho
             escritaArqBin.writeInt(0);
-            escritaModelo.writeInt(0);
-            escritaOperador.writeInt(0);
+//            escritaModelo.writeInt(0);
+//            escritaOperador.writeInt(0);
 
             // pula a linha com os nomes das colunas
             String linha = entArqCsv.readLine();
@@ -119,7 +119,7 @@ public class CRUD {
                     modelosDeAeronaves.adicionarTermos(modelo, temp.getId());
                     //System.out.print("Modelo: " + modelo);
                     String operador = retiraString(linha, false);
-                    operadoresDeAeronaves.adicionarTermos(operador, temp.getId());
+                    //operadoresDeAeronaves.adicionarTermos(operador, temp.getId());
                     //System.out.println(" | Operador: " + operador + "Linha: " + contador);
                     if (temp != null) {
                         totalRegistros++;
