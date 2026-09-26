@@ -4,6 +4,7 @@ import java.util.Scanner;
 public class ListaInvertida {
     //private String[] termos;
     private File arq;
+
     public ListaInvertida(String caminho) {
         arq = new File(caminho);
     }
@@ -32,11 +33,26 @@ public class ListaInvertida {
     }
 
     //Adiciona novos termos ao arquivo atribuido a variavel arq
-    public void adicionarTermos(String linha){
+    public void adicionarTermos(String linha, int id){
         int tam = contarTermos(linha);
         String[] termos = new String[tam];
         //metodo de inserção de termos
         inserirTermos(termos, tam, linha);
-        //metodeo de pesquisa de termos no arquivo
+        //metodo de pesquisa de termos no arquivo
+        //Inserir termos com os seus respectivos ids
     }
+
+    //Atualiza os termos
+    public void atualizarTermos(){
+        //infelizmente não sei como ela deveria atualizar os termos ainda
+    }
+
+    //Apaga os termos via lapide
+    public void apagarTermos(){
+        //infelizmente não sei como ela deveria atualizar os termos ainda
+    }
+
+    //Procura os termos na lista invertidas
+    /*public ??? pesquisarTermos(){
+    }*/
 }

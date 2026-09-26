@@ -69,7 +69,7 @@ public class CRUD {
                 leitor.useDelimiter("\"");
                 resul = leResul.next() + leitor.next();
                 leResul.close();
-                leitor.useDelimiter("\"");
+                leitor.useDelimiter(",");
             }
             //leitor.useDelimiter();
         }
@@ -116,10 +116,11 @@ public class CRUD {
                     //deve ser criado um metodo para extrair os dados necessarios de cada arquivo
                     //agora deve ser extraido das strings os termos delas e inseri-los nas listas, no caso uma classe de listas pode ser utilizada
                     String modelo = retiraString(linha, true);
-                    modelosDeAeronaves.adicionarTermos(modelo);
+                    modelosDeAeronaves.adicionarTermos(modelo, temp.getId());
+                    //System.out.print("Modelo: " + modelo);
                     String operador = retiraString(linha, false);
-                    operadoresDeAeronaves.adicionarTermos(operador);
-                    //System.out.println("Modelo: " + modelo + " | Operador: " + operador);
+                    operadoresDeAeronaves.adicionarTermos(operador, temp.getId());
+                    //System.out.println(" | Operador: " + operador + "Linha: " + contador);
                     if (temp != null) {
                         totalRegistros++;
                         byte[] dados = temp.arrEmBytes();
@@ -258,6 +259,9 @@ public class CRUD {
             inicializarArquivo(caminhoOperadorAeronave);
         }
 
+        //Pega as Strings
+        String modelo = incidente.getAircraftModel();
+        String operador = incidente.getAircraftOperator();
         try (RandomAccessFile escritaArqBin = new RandomAccessFile(arq, "rw")) {
             // le o ultimo id do cabecalho (primeiros 4 bytes)
             escritaArqBin.seek(0);
@@ -267,6 +271,10 @@ public class CRUD {
             }
 
             int novoId = ultimoId + 1;
+            //Pega o novo id para passar para a classe lista invertida
+            modelosDeAeronaves.adicionarTermos(modelo, novoId);
+            operadoresDeAeronaves.adicionarTermos(operador, novoId);
+            //
             incidente.setId(novoId);
 
             byte[] dados = incidente.arrEmBytes();

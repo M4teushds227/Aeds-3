@@ -38,15 +38,18 @@ public class Main {
                     menuCarregarBase();
                     break;
                 case 2:
+                    //Cria coisas para a lista
                     menuCriar();
                     break;
                 case 3:
                     menuLer();
                     break;
                 case 4:
+                    //Atualiza a lista
                     menuAtualizar();
                     break;
                 case 5:
+                    //Atualiza a lista
                     menuDeletar();
                     break;
                 case 6:
@@ -54,6 +57,15 @@ public class Main {
                     break;
                 case 7:
                     menuOrdenacaoExterna();
+                    break;
+                case 8:
+                    menuBuscaModelo();
+                    break;
+                case 9:
+                    menuBuscaOperador();
+                    break;
+                case 10:
+                    menuBuscaNasListas();
                     break;
                 default:
                     System.out.println("Opcao invalida. Tente novamente.");
@@ -92,6 +104,8 @@ public class Main {
 
         try {
             Incidente novo = new Incidente();
+            //ListaInvertida novosTermosModelo = new ListaInvertida("Src/Base de Dados/lista_termos_modelo.db");
+            //ListaInvertida novosTermosOperador = new ListaInvertida("Src/Base de Dados/lista_termos_operador.db");
 
             System.out.print("Incident Date (LocalDate - YYYY-MM-DD): ");
             String strData = sc.nextLine().trim();
@@ -181,6 +195,7 @@ public class Main {
             System.out.print("Collision Casualties (int): ");
             novo.setCollisionCasualties(CRUD.somaNumStrings(sc.nextLine().trim()));
 
+            //aqui que deve ser adicionado os novos termos
             int idGerado = crud.create(novo);
             System.out.println("\nIncidente criado com sucesso! ID gerado: " + idGerado);
 
@@ -198,13 +213,13 @@ public class Main {
         try {
             int id = Integer.parseInt(strId);
             Incidente inc = crud.read(id);
-
+    
             if (inc != null) {
                 System.out.println(inc.imprimirDetalhado());
             } else {
                 System.out.println("Incidente com ID " + id + " nao encontrado ou excluido.");
             }
-
+    
         } catch (NumberFormatException e) {
             System.out.println("ID invalido! Digite um numero inteiro.");
         } catch (IOException e) {
@@ -212,6 +227,16 @@ public class Main {
         }
     }
 
+    //Sugestão de modularização
+    /*
+    Ao invez de fazer esse monte de ifs e atualizar tudo da classe incidente no main
+    você poderia deixar esse papel unica e exclusivamente para a classe Incidente.
+    O ganho disso seria no main que ficaria relativamente menor e seguiria as regras da modularização.
+
+    A segunda sugestão seria fazer com que o usuario pudese escolher
+    se quer escolher um atributo especifico para alterar ou se quer alterar a linha inteira,
+    com isso seria possivel utilizar apenas um int e uma String e o tratamento ficaria por parte da função da classe Incidente.
+    */
     // Atualiza dados de um incidente
     private static void menuAtualizar() {
         System.out.println("--- Atualizar Incidente ---");
@@ -278,8 +303,7 @@ public class Main {
             if (!strFatalidades.isEmpty()) {
                 try {
                     incidente.setFatalities(Integer.parseInt(strFatalidades));
-                } catch (NumberFormatException ignored) {
-                }
+                } catch (NumberFormatException ignored) {}
             }
 
             boolean ok = crud.update(incidente);
@@ -367,5 +391,12 @@ public class Main {
         } catch (IOException e) {
             System.out.println("Erro durante a ordenacao externa: " + e.getMessage());
         }
+    }
+
+    private static void menuBuscaModelo(){
+    }
+    private static void menuBuscaOperador(){
+    }
+    private static void menuBuscaNasListas(){
     }
 }
