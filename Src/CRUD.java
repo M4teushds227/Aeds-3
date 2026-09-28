@@ -389,4 +389,239 @@ public class CRUD {
 
         return lista;
     }
+
+    public int createComIndiceB(Incidente incidente, ArvoreBMais indice) throws IOException {
+        File arq = new File(this.caminhoArquivo);
+        if (!arq.exists()) {
+            inicializarArquivo();
+        }
+
+        try (RandomAccessFile escritaArqBin = new RandomAccessFile(arq, "rw")) {
+            escritaArqBin.seek(0);
+            int ultimoId = 0;
+            if (escritaArqBin.length() >= 4) {
+                ultimoId = escritaArqBin.readInt();
+            }
+
+            int novoId = ultimoId + 1;
+            incidente.setId(novoId);
+
+            byte[] dados = incidente.arrEmBytes();
+
+            // Grava no fim do arquivo
+            long pos = escritaArqBin.length();
+            escritaArqBin.seek(pos);
+            escritaArqBin.writeByte(lapideValido);
+            escritaArqBin.writeInt(dados.length);
+            escritaArqBin.write(dados);
+
+            // Atualiza cabecalho
+            escritaArqBin.seek(0);
+            escritaArqBin.writeInt(novoId);
+
+            // Atualiza o indice Arvore B+ mantendo a coerencia
+            if (indice != null) {
+                indice.inserir(novoId, pos);
+            }
+
+            return novoId;
+        }
+    }
+
+    
+    public Incidente readComIndiceB(int id, ArvoreBMais indice) throws IOException {
+        if (indice == null) {
+            return read(id);
+        }
+
+        long pos = indice.buscar(id);
+        if (pos < 0) {
+            return null; // Nao existe no indice
+        }
+
+        File arq = new File(this.caminhoArquivo);
+        if (!arq.exists() || arq.length() < 4) {
+            return null;
+        }
+
+        try (RandomAccessFile escritaArqBin = new RandomAccessFile(arq, "r")) {
+            if (pos >= escritaArqBin.length()) {
+                return null;
+            }
+
+            escritaArqBin.seek(pos);
+            byte lapide = escritaArqBin.readByte();
+            int tamanho = escritaArqBin.readInt();
+
+            if (lapide == lapideValido) {
+                byte[] ba = new byte[tamanho];
+                escritaArqBin.readFully(ba);
+
+                Incidente inc = new Incidente();
+                inc.bytesEmArr(ba);
+                return inc;
+            }
+        }
+        return null;
+    }
+
+    
+    public boolean updateComIndiceB(Incidente novoIncidente, ArvoreBMais indice) throws IOException {
+        if (indice == null) {
+            return update(novoIncidente);
+        }
+
+        long posAtual = indice.buscar(novoIncidente.getId());
+        if (posAtual < 0) {
+            return false;
+        }
+
+        File arq = new File(this.caminhoArquivo);
+        if (!arq.exists() || arq.length() < 4) {
+            return false;
+        }
+
+        try (RandomAccessFile escritaArqBin = new RandomAccessFile(arq, "rw")) {
+            if (posAtual >= escritaArqBin.length()) {
+                return false;
+            }
+
+            escritaArqBin.seek(posAtual);
+            byte lapide = escritaArqBin.readByte();
+            int tamanhoOriginal = escritaArqBin.readInt();
+
+            if (lapide == lapideValido) {
+                byte[] novosBytes = novoIncidente.arrEmBytes();
+
+                if (novosBytes.length == tamanhoOriginal) {
+                    // Mesmo tamanho, sobrescreve na mesma posicao (posicao no indice permanece a mesma)
+                    escritaArqBin.seek(posAtual + 1 + 4);
+                    escritaArqBin.write(novosBytes);
+                } else {
+                    // Tamanho diferente, marca lapide do antigo como excluido
+                    escritaArqBin.seek(posAtual);
+                    escritaArqBin.writeByte(lapideExcluido);
+
+                    // Grava nova versao no final do arquivo de dados
+                    long novaPos = escritaArqBin.length();
+                    escritaArqBin.seek(novaPos);
+                    escritaArqBin.writeByte(lapideValido);
+                    escritaArqBin.writeInt(novosBytes.length);
+                    escritaArqBin.write(novosBytes);
+
+                    // Atualiza o novo tamanho no indice Arvore B+
+                    indice.atualizar(novoIncidente.getId(), novaPos);
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    
+    public boolean deleteComIndiceB(int id, ArvoreBMais indice) throws IOException {
+        if (indice == null) {
+            return delete(id);
+        }
+
+        long posAtual = indice.buscar(id);
+        if (posAtual < 0) {
+            return false;
+        }
+
+        File arq = new File(this.caminhoArquivo);
+        if (!arq.exists() || arq.length() < 4) {
+            return false;
+        }
+
+        try (RandomAccessFile escritaArqBin = new RandomAccessFile(arq, "rw")) {
+            if (posAtual >= escritaArqBin.length()) {
+                return false;
+            }
+
+            escritaArqBin.seek(posAtual);
+            byte lapide = escritaArqBin.readByte();
+            if (lapide == lapideValido) {
+                escritaArqBin.seek(posAtual);
+                escritaArqBin.writeByte(lapideExcluido);
+
+                // Remove do indice Arvore B+
+                indice.excluir(id);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    
+    public int indexarBaseComArvoreB(ArvoreBMais indice) throws IOException {
+        if (indice == null) {
+            return 0;
+        }
+
+        File arq = new File(this.caminhoArquivo);
+        if (!arq.exists() || arq.length() < 4) {
+            return 0;
+        }
+
+        indice.limpar();
+
+        int total = 0;
+        try (RandomAccessFile escritaArqBin = new RandomAccessFile(arq, "r")) {
+            escritaArqBin.seek(4); // Pula cabecalho
+
+            while (escritaArqBin.getFilePointer() < escritaArqBin.length()) {
+                long posRegistro = escritaArqBin.getFilePointer();
+                byte lapide = escritaArqBin.readByte();
+                int tamanho = escritaArqBin.readInt();
+
+                if (lapide == lapideValido) {
+                    byte[] ba = new byte[tamanho];
+                    escritaArqBin.readFully(ba);
+
+                    Incidente inc = new Incidente();
+                    inc.bytesEmArr(ba);
+
+                    indice.inserir(inc.getId(), posRegistro);
+                    total++;
+                } else {
+                    escritaArqBin.skipBytes(tamanho);
+                }
+            }
+        }
+        return total;
+    }
+
+    
+    public List<Incidente> buscarFaixaComIndiceB(int idInicio, int idFim, ArvoreBMais indice) throws IOException {
+        List<Incidente> resultado = new ArrayList<>();
+        if (indice == null) {
+            return resultado;
+        }
+
+        List<Long> posicoes = indice.buscarFaixa(idInicio, idFim);
+        File arq = new File(this.caminhoArquivo);
+        if (!arq.exists() || arq.length() < 4) {
+            return resultado;
+        }
+
+        try (RandomAccessFile escritaArqBin = new RandomAccessFile(arq, "r")) {
+            for (long pos : posicoes) {
+                if (pos < escritaArqBin.length()) {
+                    escritaArqBin.seek(pos);
+                    byte lapide = escritaArqBin.readByte();
+                    int tamanho = escritaArqBin.readInt();
+                    if (lapide == lapideValido) {
+                        byte[] ba = new byte[tamanho];
+                        escritaArqBin.readFully(ba);
+                        Incidente inc = new Incidente();
+                        inc.bytesEmArr(ba);
+                        resultado.add(inc);
+                    }
+                }
+            }
+        }
+        return resultado;
+    }
 }
+
