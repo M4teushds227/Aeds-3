@@ -1,6 +1,5 @@
 package Src;
 
-import java.io.File;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -12,11 +11,18 @@ public class Main {
 
     private static String arq_Csv = "Src/Base de Dados/bd.csv";
     private static String arq_Binario = "Src/Base de Dados/incidentes.db";
+    private static String arq_IndiceB = "Src/Base de Dados/indice_arvore_bmais.db";
     private static Scanner sc = new Scanner(System.in);
     private static CRUD crud;
+    private static ArvoreBMais arvoreBMais;
 
     public static void main(String[] args) {
         crud = new CRUD(arq_Binario);
+        try {
+            arvoreBMais = new ArvoreBMais(arq_IndiceB, 8);
+        } catch (IOException e) {
+            System.out.println("Aviso: Nao foi possivel inicializar a Arvore B+: " + e.getMessage());
+        }
 
         while (true) {
             exibirMenu();
@@ -54,6 +60,25 @@ public class Main {
                 case 7:
                     menuOrdenacaoExterna();
                     break;
+                case 8:
+                    menuIndexarArvoreB();
+                    break;
+                case 9:
+                    menuVisualizarArvoreB();
+                    break;
+                case 10:
+                    menuBuscarFaixaArvoreB();
+                    break;
+                case 0:
+                    if (arvoreBMais != null) {
+                        try {
+                            arvoreBMais.fechar();
+                        } catch (IOException ignored) {
+                        }
+                    }
+                    System.out.println("Encerrando o programa...");
+                    System.exit(0);
+                    break;
                 default:
                     System.out.println("Opcao invalida. Tente novamente.");
             }
@@ -67,7 +92,11 @@ public class Main {
         System.out.println("4 - Atualizar Incidente (Update)");
         System.out.println("5 - Excluir Incidente (Delete)");
         System.out.println("6 - Listar Registros");
-        System.out.println("7 - Ordenacao Externa\n");
+        System.out.println("7 - Ordenacao Externa");
+        System.out.println("8 - Indexar Base na Arvore B+");
+        System.out.println("9 - Visualizar Estrutura da Arvore B+");
+        System.out.println("10 - Buscar por Faixa na Arvore B+");
+        System.out.println("0 - Sair\n");
     }
 
     // Le o CSV e passa os dados pro binario
@@ -78,6 +107,14 @@ public class Main {
             System.out.println("Base carregada");
             System.out.println("Total de registros importados: " + total);
             System.out.println("Ultimo ID cadastrado: " + crud.obterUltimoId());
+
+            if (arvoreBMais != null) {
+                System.out.print("Deseja tambem indexar a base na Arvore B+ agora? (s/n): ");
+                String resp = sc.nextLine().trim().toLowerCase();
+                if (resp.equals("s") || resp.equals("sim")) {
+                    menuIndexarArvoreB();
+                }
+            }
         } catch (IOException e) {
             System.out.println("Erro ao carregar o CSV: " + e.getMessage());
         }
@@ -178,8 +215,17 @@ public class Main {
             System.out.print("Collision Casualties (int): ");
             novo.setCollisionCasualties(CRUD.somaNumStrings(sc.nextLine().trim()));
 
-            int idGerado = crud.create(novo);
-            System.out.println("\nIncidente criado com sucesso! ID gerado: " + idGerado);
+            System.out.print("\nMetodo de insercao (1 - Sequencial | 2 - Arvore B+): ");
+            String metodo = sc.nextLine().trim();
+
+            int idGerado;
+            if (metodo.equals("2") && arvoreBMais != null) {
+                idGerado = crud.createComIndiceB(novo, arvoreBMais);
+                System.out.println("\nIncidente criado com sucesso (com indice Arvore B+)! ID gerado: " + idGerado);
+            } else {
+                idGerado = crud.create(novo);
+                System.out.println("\nIncidente criado com sucesso (Sequencial)! ID gerado: " + idGerado);
+            }
 
         } catch (IOException e) {
             System.out.println("Erro ao criar incidente: " + e.getMessage());
@@ -194,7 +240,22 @@ public class Main {
 
         try {
             int id = Integer.parseInt(strId);
-            Incidente inc = crud.read(id);
+
+            System.out.print("Metodo de busca (1 - Sequencial no arquivo | 2 - Indice Arvore B+): ");
+            String metodo = sc.nextLine().trim();
+
+            Incidente inc;
+            if (metodo.equals("2") && arvoreBMais != null) {
+                long tInicio = System.nanoTime();
+                inc = crud.readComIndiceB(id, arvoreBMais);
+                long tFim = System.nanoTime();
+                System.out.printf("Tempo de busca (Arvore B+): %.4f ms\n", (tFim - tInicio) / 1e6);
+            } else {
+                long tInicio = System.nanoTime();
+                inc = crud.read(id);
+                long tFim = System.nanoTime();
+                System.out.printf("Tempo de busca (Sequencial): %.4f ms\n", (tFim - tInicio) / 1e6);
+            }
 
             if (inc != null) {
                 System.out.println(inc.imprimirDetalhado());
@@ -279,7 +340,16 @@ public class Main {
                 }
             }
 
-            boolean ok = crud.update(incidente);
+            System.out.print("\nMetodo de atualizacao (1 - Sequencial | 2 - Arvore B+): ");
+            String metodo = sc.nextLine().trim();
+
+            boolean ok;
+            if (metodo.equals("2") && arvoreBMais != null) {
+                ok = crud.updateComIndiceB(incidente, arvoreBMais);
+            } else {
+                ok = crud.update(incidente);
+            }
+
             if (ok) {
                 System.out.println("\nIncidente " + id + " atualizado com sucesso!");
             } else {
@@ -304,7 +374,15 @@ public class Main {
             String resp = sc.nextLine().trim().toLowerCase();
 
             if (resp.equals("s") || resp.equals("sim")) {
-                boolean deletado = crud.delete(id);
+                System.out.print("Metodo de exclusao (1 - Sequencial | 2 - Arvore B+): ");
+                String metodo = sc.nextLine().trim();
+
+                boolean deletado;
+                if (metodo.equals("2") && arvoreBMais != null) {
+                    deletado = crud.deleteComIndiceB(id, arvoreBMais);
+                } else {
+                    deletado = crud.delete(id);
+                }
                 if (deletado) {
                     System.out.println("Incidente " + id + " excluido com sucesso.");
                 } else {
@@ -363,6 +441,68 @@ public class Main {
 
         } catch (IOException e) {
             System.out.println("Erro durante a ordenacao externa: " + e.getMessage());
+        }
+    }
+
+    // Indexa toda a base existente na Arvore B+
+    private static void menuIndexarArvoreB() {
+        System.out.println("\n--- Indexando Base com Arvore B+ ---");
+        try {
+            if (arvoreBMais == null) {
+                arvoreBMais = new ArvoreBMais(arq_IndiceB, 8);
+            }
+            long inicio = System.currentTimeMillis();
+            int total = crud.indexarBaseComArvoreB(arvoreBMais);
+            long fim = System.currentTimeMillis();
+            System.out.println("Indexacao concluida com sucesso!");
+            System.out.println("Total de registros indexados: " + total);
+            System.out.println("Tempo decorrido: " + (fim - inicio) + " ms");
+        } catch (IOException e) {
+            System.out.println("Erro ao indexar base: " + e.getMessage());
+        }
+    }
+
+    // Imprime estrutura por niveis da Arvore B+
+    private static void menuVisualizarArvoreB() {
+        try {
+            if (arvoreBMais == null) {
+                arvoreBMais = new ArvoreBMais(arq_IndiceB, 8);
+            }
+            arvoreBMais.imprimirArvore();
+        } catch (IOException e) {
+            System.out.println("Erro ao visualizar Arvore B+: " + e.getMessage());
+        }
+    }
+
+    // Busca por intervalo usando o encadeamento de folhas
+    private static void menuBuscarFaixaArvoreB() {
+        System.out.println("\n--- Busca por Faixa de IDs (Arvore B+) ---");
+        try {
+            if (arvoreBMais == null) {
+                arvoreBMais = new ArvoreBMais(arq_IndiceB, 8);
+            }
+            System.out.print("ID inicial: ");
+            int idInicio = Integer.parseInt(sc.nextLine().trim());
+            System.out.print("ID final: ");
+            int idFim = Integer.parseInt(sc.nextLine().trim());
+
+            long inicio = System.nanoTime();
+            List<Incidente> lista = crud.buscarFaixaComIndiceB(idInicio, idFim, arvoreBMais);
+            long fim = System.nanoTime();
+
+            if (lista.isEmpty()) {
+                System.out.println("Nenhum registro encontrado no intervalo [" + idInicio + " - " + idFim + "].");
+            } else {
+                for (Incidente inc : lista) {
+                    System.out.println(inc.imprimir());
+                }
+                System.out.println("\nTotal encontrado: " + lista.size() + " registro(s)");
+                System.out.printf("Tempo de busca por faixa: %.4f ms\n", (fim - inicio) / 1e6);
+            }
+        } catch (NumberFormatException e) {
+            System.out.println("ID invalido.");
+        } catch (IOException e) {
+            System.out.println("Erro na busca por faixa: " + e.getMessage());
         }
     }
 }
