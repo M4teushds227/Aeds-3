@@ -36,6 +36,9 @@ public class ListaInvertida {
         scan.close();
     }
 
+    private long funcaoPular(long tamanhoBytes, long quantPula){
+        return tamanhoBytes * quantPula;
+    }
     //Adiciona novos termos ao arquivo atribuido a variavel arq
     public void adicionarTermos(String linha, int id)throws IOException{
         RandomAccessFile escrita = new RandomAccessFile(arq, "rw");
@@ -43,62 +46,51 @@ public class ListaInvertida {
         long[] comeco = new long[1];
         long[] pegaTamanhoArray = new long[1];
         escrita.seek(escrita.length());
+
         int tam = contarTermos(linha);
         String[] termos = new String[tam];
-        //metodo de inserção de termos
+        //metodo de inserção de termos no array de strings
         inserirTermosNaString(termos, tam, linha);
         System.err.println(id);
 
         for(int i = 0; i < termos.length; i++){
-            //Começo da verificação para a inserção no arquivo
+           //Começo da verificação para a inserção no arquivo
            byte[] dado = converteTermoParaBinario(termos[i], id, podeEscrever, comeco, pegaTamanhoArray);
-
+           //
            long inicio = escrita.getFilePointer() - 1;
            escrita.seek(inicio);
            escrita.write(dado);
-
-           if(podeEscrever[0]){
-               escrita.seek(escrita.length() - 1);
-               long localizacao = escrita.getFilePointer();
-               escrita.seek(inicio /*+ 27*/);
-               //Avança indepententemente de qualquer coisa
-               escrita.readBoolean();
-               escrita.readUTF();
-               escrita.readInt();
-               //
-               escrita.writeLong(localizacao);
-            }
-            else{
+           //Essa parte do código pode até ser retirada pois já não tem mais necessidade de ficar alterando o ponteiro do long
+            if(!podeEscrever[0]){
                 //Tratamento do que já existe
                 byte[] resto = pegaResto(comeco[0]);
                 escrita.seek(pegaTamanhoArray[0]);
                 int tamanhoArray = escrita.readInt();
                 escrita.seek(pegaTamanhoArray[0] + 12);
-                char[] lapidesTemporarias = new char[tamanhoArray + 1];
-                int[] idsTemporarios = new int[tamanhoArray + 1];
-                long ponteiro = escrita.getFilePointer();
-                for(int x = 0; x < tamanhoArray; x++){
+                //char[] lapidesTemporarias = new char[tamanhoArray + 1];
+                //int[] idsTemporarios = new int[tamanhoArray + 1];
+                long ponteiro;
+                /*for(int x = 0; x < tamanhoArray; x++){
                     lapidesTemporarias[x] = escrita.readChar();
                     idsTemporarios[x] = escrita.readInt();
-                    ponteiro = escrita.getFilePointer();
-                }
-                escrita.seek(ponteiro - 1);
+                    //ponteiro = escrita.getFilePointer();
+                }*/
+                escrita.seek(/*ponteiro - 1*/comeco[0]);
 
-                for(int x = 0; x < (tamanhoArray + 1); x++){
-                    if(x == tamanhoArray){
+                //for(int x = 0; x < (tamanhoArray + 1); x++){
+                    //if(x == tamanhoArray){
                         //ponteiro = escrita.getFilePointer();
+                        //detalhe que por enquanto estou escrevendo a lapide desse jeito só para ficar mais facíl de diferenciar em testes, isso será alterado depois
                         escrita.writeByte('*');
                         //ponteiro = escrita.getFilePointer();
                         escrita.writeInt(id);
                         ponteiro = escrita.getFilePointer();
-                    }
-                }
+                    //}
+                //}
                 escrita.seek(pegaTamanhoArray[0]);
                 escrita.writeInt(tamanhoArray + 1);
                 escrita.seek(ponteiro);
                 escrita.write(resto);
-
-                //System.err.println("");
             }
             escrita.seek(escrita.length());
         }
@@ -133,33 +125,27 @@ public class ListaInvertida {
         boolean ocupado = le.readBoolean();
         while(ocupado && le.getFilePointer() < le.length()){
             String comparador = le.readUTF();
-            le.seek(le.getFilePointer());
+            //le.seek(le.getFilePointer());
             pegaTamanhoArray[0] = le.getFilePointer();
             int tamanhoArray = le.readInt();
             //4
-            long localizacao = le.readLong();
-            //System.out.println(dado);
-            /*if(dado == null) {
-                System.out.print(dado);
-                System.out.println(" Deu ruim");
+            /*long localizacao =*/ le.readLong();
+            le.seek(le.getFilePointer() + funcaoPular(5, tamanhoArray));
+            /*for(int i = 0; i < tamanhoArray; i++){
+                le.readByte();
+                le.readInt();
             }*/
             Scanner tiraEspaco = new Scanner(comparador);
             comparador = tiraEspaco.next();
             tiraEspaco.close();
             if(dado.compareTo(comparador) == 0){
                 podeEscrever[0] = false;
-                le.seek(localizacao);
+                //modificar a localização já ue ela não é mais util. No caso fazer o ponteiro realmente caminhar até o final
+                //le.seek(localizacao);
                 comeco[0] = le.getFilePointer();
                 le.close();
                 break;
             }
-            long ponteiro = le.getFilePointer();
-            le.seek(ponteiro);
-            for(int i = 0; i < tamanhoArray; i++){
-                le.readByte();
-                le.readInt();
-            }
-            //le.seek(localizacao);
             ocupado = le.readBoolean();
         }
         le.close();
