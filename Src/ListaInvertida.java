@@ -40,23 +40,23 @@ public class ListaInvertida {
     public void adicionarTermos(String linha, int id)throws IOException{
         RandomAccessFile escrita = new RandomAccessFile(arq, "rw");
         boolean[] podeEscrever = new boolean[1];
+        long[] comeco = new long[1];
+        long[] pegaTamanhoArray = new long[1];
         escrita.seek(escrita.length());
         int tam = contarTermos(linha);
         String[] termos = new String[tam];
         //metodo de inserção de termos
         inserirTermosNaString(termos, tam, linha);
         System.err.println(id);
-        //Inserir termos com os seus respectivos ids
-        //System.out.println(linha + " " + id);
+
         for(int i = 0; i < termos.length; i++){
-            byte[] dado = converteTermo(termos[i], id, podeEscrever);
-            //inico do arquivo
+            //Começo da verificação para a inserção no arquivo
+           byte[] dado = converteTermoParaBinario(termos[i], id, podeEscrever, comeco, pegaTamanhoArray);
+
            long inicio = escrita.getFilePointer() - 1;
            escrita.seek(inicio);
            escrita.write(dado);
 
-           //escrita.seek(inicio + 1);
-           //System.out.println(escrita.readUTF());
            if(podeEscrever[0]){
                escrita.seek(escrita.length() - 1);
                long localizacao = escrita.getFilePointer();
@@ -68,19 +68,47 @@ public class ListaInvertida {
                //
                escrita.writeLong(localizacao);
             }
+            else{
+                //Tratamento do que já existe
+                byte[] resto = pegaResto(comeco[0]);
+                escrita.seek(pegaTamanhoArray[0]);
+                int tamanhoArray = escrita.readInt();
+                escrita.seek(pegaTamanhoArray[0] + 12);
+                char[] lapidesTemporarias = new char[tamanhoArray + 1];
+                int[] idsTemporarios = new int[tamanhoArray + 1];
+                long ponteiro = escrita.getFilePointer();
+                for(int x = 0; x < tamanhoArray; x++){
+                    lapidesTemporarias[x] = escrita.readChar();
+                    idsTemporarios[x] = escrita.readInt();
+                    ponteiro = escrita.getFilePointer();
+                }
+                escrita.seek(ponteiro - 1);
+
+                for(int x = 0; x < (tamanhoArray + 1); x++){
+                    if(x == tamanhoArray){
+                        //ponteiro = escrita.getFilePointer();
+                        escrita.writeByte('*');
+                        //ponteiro = escrita.getFilePointer();
+                        escrita.writeInt(id);
+                        ponteiro = escrita.getFilePointer();
+                    }
+                }
+                escrita.seek(pegaTamanhoArray[0]);
+                escrita.writeInt(tamanhoArray + 1);
+                escrita.seek(ponteiro);
+                escrita.write(resto);
+
+                //System.err.println("");
+            }
             escrita.seek(escrita.length());
-            //escrita.seek(inicio + 20);
-            //escrita.seek(escrita.readLong());
-            //boolean resultado = escrita.readBoolean();
-            //System.out.println(resultado);
         }
         //System.out.println();
     }
-    private byte[] converteTermo(String dado, int id, boolean[] podeEscrever)throws IOException{
+    private byte[] converteTermoParaBinario(String dado, int id, boolean[] podeEscrever, long[] comeco, long[] pegaTamanhoArray)throws IOException{
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         DataOutputStream dos = new DataOutputStream(baos);
         //System.out.println(dado);
-        if(procuraTermo(dado, podeEscrever)){
+        if(procuraTermo(dado, podeEscrever, comeco, pegaTamanhoArray)){
             for(int i = dado.length(); i < 20; i++){
                 dado += " ";
             }
@@ -99,14 +127,16 @@ public class ListaInvertida {
         return baos.toByteArray();
     }
     //procura
-    private boolean procuraTermo(String dado, boolean[] podeEscrever)throws IOException{
+    private boolean procuraTermo(String dado, boolean[] podeEscrever, long[] comeco, long[] pegaTamanhoArray)throws IOException{
         RandomAccessFile le = new RandomAccessFile(arq, "r");
         podeEscrever[0] = true;
         boolean ocupado = le.readBoolean();
         while(ocupado && le.getFilePointer() < le.length()){
             String comparador = le.readUTF();
-            //int lixo = le.readInt();
-            le.seek(le.getFilePointer() + 4);
+            le.seek(le.getFilePointer());
+            pegaTamanhoArray[0] = le.getFilePointer();
+            int tamanhoArray = le.readInt();
+            //4
             long localizacao = le.readLong();
             //System.out.println(dado);
             /*if(dado == null) {
@@ -118,14 +148,38 @@ public class ListaInvertida {
             tiraEspaco.close();
             if(dado.compareTo(comparador) == 0){
                 podeEscrever[0] = false;
+                le.seek(localizacao);
+                comeco[0] = le.getFilePointer();
                 le.close();
                 break;
             }
-            le.seek(localizacao);
+            long ponteiro = le.getFilePointer();
+            le.seek(ponteiro);
+            for(int i = 0; i < tamanhoArray; i++){
+                le.readByte();
+                le.readInt();
+            }
+            //le.seek(localizacao);
             ocupado = le.readBoolean();
         }
         le.close();
         return podeEscrever[0];
+    }
+    private byte[] pegaResto(long comeco) throws IOException{
+        RandomAccessFile le = new RandomAccessFile(arq, "r");
+        le.seek(comeco);
+        byte[] resto = new byte[(int)le.length()/*(int) (le.length() - comeco) + 10*/];
+        le.readFully(resto, (int)comeco, (int) (le.length() - comeco));
+        byte[] substituto = new byte[(int) (le.length() - comeco)];
+        int j = 0;
+        for(int i = 0; i < resto.length; i++){
+            if(i > (int) comeco - 1){
+                substituto[j] = resto[i];
+                j++;
+            }
+        }
+        le.close();
+        return substituto;
     }
 
     //Atualiza os termos
