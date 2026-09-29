@@ -10,7 +10,6 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
 
 public class CRUD {
 
@@ -46,37 +45,6 @@ public class CRUD {
         }
     }
 
-    //função para retirar os dados
-    private String retiraString (String linha, boolean tipo) {
-        //melhorar o tratamento de erros depois
-        String resul;
-        Scanner leitor = new Scanner(linha);
-        leitor.useDelimiter(",");
-        resul = leitor.next();
-        //modelo da aeronave
-        if(tipo){
-            resul = leitor.next();
-        }
-        //operador da aeronave
-        else{
-            resul = leitor.next();
-            resul = leitor.next();
-            resul = leitor.next();
-            
-            if(resul.charAt(0) == '\"'){
-                Scanner leResul = new Scanner(resul);
-                leResul.useDelimiter("\"");
-                leitor.useDelimiter("\"");
-                resul = leResul.next() + leitor.next();
-                leResul.close();
-                leitor.useDelimiter(",");
-            }
-            //leitor.useDelimiter();
-        }
-        leitor.close();
-        return resul;
-    }
-
     // Le o CSV e passa os registros pro arquivo binario
     public int carregarCSV(String caminhoCSV) throws IOException {
         File csvArq = new File(caminhoCSV);
@@ -102,7 +70,7 @@ public class CRUD {
             // reserva os primeiros 4 bytes pro cabecalho
             escritaArqBin.writeInt(0);
             escritaModelo.writeBoolean(false);
-//            escritaOperador.writeBoolean(false);
+            escritaOperador.writeBoolean(false);
 
             // pula a linha com os nomes das colunas
             String linha = entArqCsv.readLine();
@@ -113,18 +81,12 @@ public class CRUD {
             while ((linha = entArqCsv.readLine()) != null) {
                 if (!linha.trim().isEmpty()) {
                     Incidente temp = CriarIncidente(linha, totalRegistros + 1);
-                    //deve ser criado um metodo para extrair os dados necessarios de cada arquivo
-                    //agora deve ser extraido das strings os termos delas e inseri-los nas listas, no caso uma classe de listas pode ser utilizada
-                    String modelo = retiraString(linha, true);
-                    modelosDeAeronaves.adicionarTermos(modelo, temp.getId());
-                    //System.out.print("Modelo: " + modelo);
-                    String operador = retiraString(linha, false);
-                    //operadoresDeAeronaves.adicionarTermos(operador, temp.getId());
-                    //System.out.println(" | Operador: " + operador + "Linha: " + contador);
+                    //Insere na lista invertida
+                    escritaNaListaInvertida(temp);
                     if (temp != null) {
                         totalRegistros++;
                         byte[] dados = temp.arrEmBytes();
-
+                        
                         // grava lapide, tamanho e os bytes do registro
                         escritaArqBin.writeByte(lapideValido);
                         escritaArqBin.writeInt(dados.length);
@@ -137,9 +99,37 @@ public class CRUD {
             escritaArqBin.seek(0);
             escritaArqBin.writeInt(totalRegistros);
         }
-
+        
         return totalRegistros;
     }
+    
+    //As minhas funções devem ser escritas aqui
+    //Insere os termos nas listas
+    private void escritaNaListaInvertida(Incidente temp) throws IOException{
+        try{
+            String modelo = temp.getAircraftModel();
+            modelosDeAeronaves.criarTermos(modelo, temp.getId());
+        }
+        catch (Exception e) {
+            System.err.println("Algo deu errado na inserção de termos de modelo");
+        }
+        //Tenta inserir na outra lista
+        try{
+            String operador = temp.getAircraftOperator();
+            operadoresDeAeronaves.criarTermos(operador, temp.getId());
+        }
+        catch (Exception e) {
+            System.err.println("Algo deu errado na inserção de termos do operador");
+        }
+    }
+    //Pesquisa os termos de modelos ou operadores
+    public void pesquisaNaListaModelo(String modelo) throws IOException{
+        System.out.println("Resultado da pesquisa: " + modelosDeAeronaves.pesquisarTermo(modelo));
+    }
+    public void pesquisaNaListaOperador(String operador) throws IOException{
+        System.out.println("Resultado da pesquisa: " + operadoresDeAeronaves.pesquisarTermo(operador));
+    }
+    //
 
     // Função pra verificar se não esta faltando alguma coluna
     private String lerColuna(List<String> colunas, int indice) {
@@ -259,9 +249,6 @@ public class CRUD {
             inicializarArquivo(caminhoOperadorAeronave);
         }
 
-        //Pega as Strings
-        String modelo = incidente.getAircraftModel();
-        String operador = incidente.getAircraftOperator();
         try (RandomAccessFile escritaArqBin = new RandomAccessFile(arq, "rw")) {
             // le o ultimo id do cabecalho (primeiros 4 bytes)
             escritaArqBin.seek(0);
@@ -271,10 +258,8 @@ public class CRUD {
             }
 
             int novoId = ultimoId + 1;
-            //Pega o novo id para passar para a classe lista invertida
-            modelosDeAeronaves.adicionarTermos(modelo, novoId);
-            operadoresDeAeronaves.adicionarTermos(operador, novoId);
-            //
+            //chama o metodo de inserção nas listas
+            escritaNaListaInvertida(incidente);
             incidente.setId(novoId);
 
             byte[] dados = incidente.arrEmBytes();

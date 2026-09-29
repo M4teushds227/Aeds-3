@@ -36,57 +36,50 @@ public class ListaInvertida {
         scan.close();
     }
 
+    //Função para pular uma quantidade fixa de bytes N vezes
     private long funcaoPular(long tamanhoBytes, long quantPula){
         return tamanhoBytes * quantPula;
     }
+
     //Adiciona novos termos ao arquivo atribuido a variavel arq
-    public void adicionarTermos(String linha, int id)throws IOException{
+    public void criarTermos(String linha, int id)throws IOException{
         RandomAccessFile escrita = new RandomAccessFile(arq, "rw");
+        //ponteiros
         boolean[] podeEscrever = new boolean[1];
         long[] comeco = new long[1];
         long[] pegaTamanhoArray = new long[1];
         escrita.seek(escrita.length());
-
+        //metodo de contagem de termos
         int tam = contarTermos(linha);
         String[] termos = new String[tam];
         //metodo de inserção de termos no array de strings
         inserirTermosNaString(termos, tam, linha);
+        //
         System.err.println(id);
-
+        //
+        //Extração dos termos propriamente dita
         for(int i = 0; i < termos.length; i++){
-           //Começo da verificação para a inserção no arquivo
-           byte[] dado = converteTermoParaBinario(termos[i], id, podeEscrever, comeco, pegaTamanhoArray);
+           //Converte os bytes se tiver converção
+           byte[] dado = converterTermos(termos[i], id, podeEscrever, comeco, pegaTamanhoArray);
            //
            long inicio = escrita.getFilePointer() - 1;
            escrita.seek(inicio);
            escrita.write(dado);
-           //Essa parte do código pode até ser retirada pois já não tem mais necessidade de ficar alterando o ponteiro do long
             if(!podeEscrever[0]){
                 //Tratamento do que já existe
-                byte[] resto = pegaResto(comeco[0]);
+                byte[] resto = pegaRestoDosBytes(comeco[0]);
                 escrita.seek(pegaTamanhoArray[0]);
                 int tamanhoArray = escrita.readInt();
-                escrita.seek(pegaTamanhoArray[0] + 12);
-                //char[] lapidesTemporarias = new char[tamanhoArray + 1];
-                //int[] idsTemporarios = new int[tamanhoArray + 1];
+                //talvez isso possa ser retirado
+                escrita.seek(pegaTamanhoArray[0] + 4);
+                //
                 long ponteiro;
-                /*for(int x = 0; x < tamanhoArray; x++){
-                    lapidesTemporarias[x] = escrita.readChar();
-                    idsTemporarios[x] = escrita.readInt();
-                    //ponteiro = escrita.getFilePointer();
-                }*/
-                escrita.seek(/*ponteiro - 1*/comeco[0]);
-
-                //for(int x = 0; x < (tamanhoArray + 1); x++){
-                    //if(x == tamanhoArray){
-                        //ponteiro = escrita.getFilePointer();
-                        //detalhe que por enquanto estou escrevendo a lapide desse jeito só para ficar mais facíl de diferenciar em testes, isso será alterado depois
-                        escrita.writeByte('*');
-                        //ponteiro = escrita.getFilePointer();
-                        escrita.writeInt(id);
-                        ponteiro = escrita.getFilePointer();
-                    //}
-                //}
+                escrita.seek(comeco[0]);
+                //detalhe que por enquanto estou escrevendo a lapide desse jeito só para ficar mais facíl de diferenciar em testes, isso será alterado depois
+                escrita.writeByte('*');
+                escrita.writeInt(id);
+                ponteiro = escrita.getFilePointer();
+                //alterações finais da iteração
                 escrita.seek(pegaTamanhoArray[0]);
                 escrita.writeInt(tamanhoArray + 1);
                 escrita.seek(ponteiro);
@@ -94,54 +87,51 @@ public class ListaInvertida {
             }
             escrita.seek(escrita.length());
         }
-        //System.out.println();
+        //escrita.close();
     }
-    private byte[] converteTermoParaBinario(String dado, int id, boolean[] podeEscrever, long[] comeco, long[] pegaTamanhoArray)throws IOException{
+
+    private byte[] converterTermos(String dado, int id, boolean[] podeEscrever, long[] comeco, long[] pegaTamanhoArray)throws IOException{
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         DataOutputStream dos = new DataOutputStream(baos);
-        //System.out.println(dado);
-        if(procuraTermo(dado, podeEscrever, comeco, pegaTamanhoArray)){
+        //
+        if(pesquisarTermo(dado, podeEscrever, comeco, pegaTamanhoArray)){
             for(int i = dado.length(); i < 20; i++){
                 dado += " ";
             }
-            //System.out.println(id);
+            //Escrita no array
+            //
             dos.writeBoolean(true);
+            //Escreve a palavra formatada
             dos.writeUTF(dado);
             //quantos indices existem
             dos.writeInt(1);
-            //aqui que deve ser escrito quantos bytes devem ser pulados até o proximo registro
-            dos.writeLong(1);
+            //Lapide
             dos.writeByte('*');
+            //sera necessario mudar depois para ser long para poder extrair a localização
             dos.writeInt(id);
-            //deve ser pego a localização dessa escrita
+            //
             dos.writeBoolean(false);
         }
         return baos.toByteArray();
     }
-    //procura
-    private boolean procuraTermo(String dado, boolean[] podeEscrever, long[] comeco, long[] pegaTamanhoArray)throws IOException{
+    //metodo privado que procura o termo dentro do arquivo
+    private boolean pesquisarTermo(String dado, boolean[] podeEscrever, long[] comeco, long[] pegaTamanhoArray)throws IOException{
         RandomAccessFile le = new RandomAccessFile(arq, "r");
         podeEscrever[0] = true;
         boolean ocupado = le.readBoolean();
+        //Implementar uma forma mais eficiente de fazer pesquisas pois é insuficiente a comlexidade de Teta(N) que aumenta a cada inserção de novo termo
         while(ocupado && le.getFilePointer() < le.length()){
             String comparador = le.readUTF();
-            //le.seek(le.getFilePointer());
             pegaTamanhoArray[0] = le.getFilePointer();
             int tamanhoArray = le.readInt();
-            //4
-            /*long localizacao =*/ le.readLong();
             le.seek(le.getFilePointer() + funcaoPular(5, tamanhoArray));
-            /*for(int i = 0; i < tamanhoArray; i++){
-                le.readByte();
-                le.readInt();
-            }*/
+            //Tira o espaço do termo lido do arquivo binario
             Scanner tiraEspaco = new Scanner(comparador);
             comparador = tiraEspaco.next();
             tiraEspaco.close();
+            //
             if(dado.compareTo(comparador) == 0){
                 podeEscrever[0] = false;
-                //modificar a localização já ue ela não é mais util. No caso fazer o ponteiro realmente caminhar até o final
-                //le.seek(localizacao);
                 comeco[0] = le.getFilePointer();
                 le.close();
                 break;
@@ -151,12 +141,16 @@ public class ListaInvertida {
         le.close();
         return podeEscrever[0];
     }
-    private byte[] pegaResto(long comeco) throws IOException{
+
+    //Pega todos os bytes antes da alteração na função de inserção de termos e retorna o array de bytes
+    private byte[] pegaRestoDosBytes(long comeco) throws IOException{
         RandomAccessFile le = new RandomAccessFile(arq, "r");
         le.seek(comeco);
-        byte[] resto = new byte[(int)le.length()/*(int) (le.length() - comeco) + 10*/];
+        //Extrai bytes e cria arrays
+        byte[] resto = new byte[(int)le.length()];
         le.readFully(resto, (int)comeco, (int) (le.length() - comeco));
         byte[] substituto = new byte[(int) (le.length() - comeco)];
+        //Formata os bytes de forma adequada
         int j = 0;
         for(int i = 0; i < resto.length; i++){
             if(i > (int) comeco - 1){
@@ -168,6 +162,115 @@ public class ListaInvertida {
         return substituto;
     }
 
+    //A implementar depois
+
+    //pesquisa por termos
+    public boolean pesquisarTermo(String termos) throws IOException{
+        boolean resul = true;
+        int tam = contarTermos(termos);
+        String[] termo = new String[tam];
+        inserirTermosNaString(termo, tam, termos);
+        int[] tamanhos = new int[tam];
+        long[] iniciosDeArray = new long[tam];
+
+        RandomAccessFile leitura = new RandomAccessFile(arq, "r");
+        boolean verificador = leitura.readBoolean();
+        for(int i = 0; i < tam; i++){
+            while(verificador){
+                String dado = leitura.readUTF();
+                int tamanhoArray = leitura.readInt();
+                Scanner tiraEspaco = new Scanner(dado);
+                dado = tiraEspaco.next();
+                tiraEspaco.close();
+                if(dado.compareTo(termo[i]) == 0){
+                    //pega a localização do array e o tamanho
+                    iniciosDeArray[i] = leitura.getFilePointer();
+                    tamanhos[i] = tamanhoArray;
+                    /*leitura.seek(0);
+                    verificador = leitura.readBoolean();*/
+                    break;
+                }
+                //
+                leitura.seek(leitura.getFilePointer() + funcaoPular(5, tamanhoArray));
+                verificador = leitura.readBoolean();
+            }
+            //Reseta o verificador
+            leitura.seek(0);
+            verificador = leitura.readBoolean();
+        }
+        //Operação depois que acha todos os elementos
+        //int[][] listasDeId = new int[tam][];
+        Pilha[] pilhas = new Pilha[tam];
+        //inicializa as pilhas
+        for(int i = 0; i < tam; i++){
+            pilhas[i] = new Pilha();
+        }
+
+        for(int i = 0; i < tam; i++){
+            leIds(tamanhos[i], iniciosDeArray[i], pilhas[i]);
+            //listasDeId[i] = array;
+            //System.out.println("Deu certo");
+        }
+        //função que concatena as duas coisas e depois funde
+        Pilha resultado = concatenar(pilhas, tam);
+        for(int i = 0; i < resultado.getTamanho(); i++){
+            System.out.print(resultado.mostrarTopo() + " ");
+            resultado.remover();
+        }
+        leitura.close();
+        return resul;
+    }
+
+    private void leIds(int tamanho, long inicioDeArray, Pilha pilha) throws IOException{
+        /*int[] arrayIds = new int[tamanho];*/
+        //chama o arquivo
+        RandomAccessFile leitor = new RandomAccessFile(arq, "r");
+        //coloca o ponteiro do arquivo no lugar certo
+        leitor.seek(inicioDeArray);
+        //Começa o loop para inserir os ids nas posições corretas
+        for(int i = 0; i < tamanho; i++){
+            leitor.readByte();
+            /*arrayIds[i] = */pilha.inseir(leitor.readInt());
+        }
+        leitor.close();
+    }
+    private Pilha concatenar(Pilha[] pilhas, int tam){
+        //
+        Pilha iguais = new Pilha();
+        for(int i = 1; i < tam; i++){
+            while(pilhas[i].getTopo().getProx() != null){
+                /*if(pilhas[0] == pilhas[i]){
+                    if(pilhas[0] != null && ){
+                    }
+                }
+                else */if(pilhas[0].mostrarTopo() != pilhas[i].mostrarTopo()){
+                    pilhas[i].remover();
+                    pilhas[0].remover();
+                    if(pilhas[0].getTopo().getProx() == null){
+                        pilhas[0] = pilhas[1];
+                        break;
+                    }
+                }
+                else{
+                    iguais.inseir(pilhas[i].mostrarTopo());
+                    pilhas[i].remover();
+                    //pilhas[0].remover();
+                }
+            }
+
+            /*if(){
+            }*/
+        }
+        return iguais;
+    }
+
+    /*public boolean pesquisarNasDuasListas(String termo1, String termo2, File arq2){
+        boolean resul;
+        RandomAccessFile leitura = new RandomAccessFile(arq, "r");
+        leitura.close();
+        return resul;
+    }*/
+
     //Atualiza os termos
     public void atualizarTermos(){
         //infelizmente não sei como ela deveria atualizar os termos ainda
@@ -177,8 +280,4 @@ public class ListaInvertida {
     public void apagarTermos(){
         //infelizmente não sei como ela deveria atualizar os termos ainda
     }
-
-    //Procura os termos na lista invertidas
-    /*public ??? pesquisarTermos(){
-    }*/
 }

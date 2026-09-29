@@ -59,6 +59,7 @@ public class Main {
                     menuOrdenacaoExterna();
                     break;
                 case 8:
+                    //começarei a testar esse primeiro
                     menuBuscaModelo();
                     break;
                 case 9:
@@ -80,7 +81,9 @@ public class Main {
         System.out.println("4 - Atualizar Incidente (Update)");
         System.out.println("5 - Excluir Incidente (Delete)");
         System.out.println("6 - Listar Registros");
-        System.out.println("7 - Ordenacao Externa\n");
+        System.out.println("7 - Ordenacao Externa");
+        System.out.println("8 - Pesquisar registros com modelos");
+        System.out.println("9 - Pesquisar registros com operadores\n");
     }
 
     // Le o CSV e passa os dados pro binario
@@ -104,8 +107,6 @@ public class Main {
 
         try {
             Incidente novo = new Incidente();
-            //ListaInvertida novosTermosModelo = new ListaInvertida("Src/Base de Dados/lista_termos_modelo.db");
-            //ListaInvertida novosTermosOperador = new ListaInvertida("Src/Base de Dados/lista_termos_operador.db");
 
             System.out.print("Incident Date (LocalDate - YYYY-MM-DD): ");
             String strData = sc.nextLine().trim();
@@ -393,10 +394,28 @@ public class Main {
         }
     }
 
+    //Pesquisas
     private static void menuBuscaModelo(){
+        try{
+            System.out.println("Digite o modelo que você deseja procurar");
+            String modelo = sc.nextLine();
+            crud.pesquisaNaListaModelo(modelo);
+        }
+        catch (IOException e){
+            System.out.println("Erro durante a pesquisa: " + e.getMessage());
+        }
     }
     private static void menuBuscaOperador(){
+        try{
+            System.out.println("Digite o modelo que você deseja procurar");
+            String operador = sc.nextLine();
+            crud.pesquisaNaListaOperador(operador);
+        }
+        catch (IOException e){
+            System.out.println("Erro durante a pesquisa: " + e.getMessage());
+        }
     }
+    //Pesquisa nas duas listas
     private static void menuBuscaNasListas(){
     }
 }
